@@ -97,13 +97,14 @@ def extract_features_labels(images_dir, labels_file, task=1, method='landmark_fe
     # loads given labels for a specified task and creates a dictionary
     dataset = []
     labels = get_labels(labels_file, task)
-    #idx = 0 # for testing
-    for img_file in os.listdir(images_dir):
+    noisy = set()
+    #sample_size = 1000 
+    image_files = os.listdir(images_dir)
+    image_files = [img for img in image_files if img.endswith("png")]
+    image_files = sorted(image_files, key=lambda a: int(a.split('.')[0])) #[:sample_size] 
+    for img_file in image_files:
         if not img_file.endswith('png'):
             continue
-        #if idx > 500: # for testing
-        #    return dataset # for testing
-        #idx += 1 # for testing
         img_path = os.path.join(images_dir, img_file)
         if method == 'landmark_features':
             img = image.img_to_array(image.load_img(img_path,target_size=None,interpolation='bicubic'))
@@ -115,11 +116,15 @@ def extract_features_labels(images_dir, labels_file, task=1, method='landmark_fe
                 features = np.array(Image.open(img_path))
             else:
                 features = None
+        img_name = img_file.split('.')[0]
         if features is not None:
-            img_name = img_file.split('.')[0]
-            label = labels[img_name]
+            label = labels.get(img_name, None)
+            if label is None:
+                continue
             dataset.append((img_name, features, label))
-    return dataset
+        else:
+            noisy.add(img_name)
+    return dataset, noisy
 
 def get_labels(labels_file, task=1):
     # gives the image the correct label for a given task
@@ -139,6 +144,9 @@ def get_labels(labels_file, task=1):
             label = row[5]
         elif task == 5:
             label = row[1]
+            if label in {'-1','0'}:
+            #if label =='-1':
+                continue
         labels[image] = label
     return labels
 
