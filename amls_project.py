@@ -1,7 +1,6 @@
 '''
-Author: Tarek Mohtar
-Date: 
-
+Author: Tarek Mokhtar
+Date: 6/1/19
 '''
 
 import sys
@@ -15,7 +14,6 @@ import amls_helper as helper
 
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.svm import SVC
-from sklearn.ensemble import GradientBoostingClassifier as GBC
 from sklearn.ensemble import RandomForestClassifier as RF
 from sklearn.model_selection import GridSearchCV
 
@@ -55,26 +53,23 @@ def create_test_file(test_accuracy, test_predictions, test_files, task=1):
         for test_file, test_pred in zip(test_files, test_predictions):
             f.write('{0},{1}\n'.format(test_file, test_pred))
 
-def train(train_x, train_y, test_x, test_y, algo='SVM', kernel='poly', degree=2, C=0.24, tol=1e-3, lr=0.1, n_estimators=100, cv=3):
+def train(train_x, train_y, test_x, test_y, algo, hyperparams, cv=3):
     if algo == 'SVM':
-        #hyperparameters = [{'kernel': ['poly'], 'C': [0.15,0.16,0.17,0.18], 'degree': [2,3,4], 'tol': [1e-1,1e-2,1e-3]}] # TODO
-        #model = GridSearchCV(SVC(), hyperparameters, cv=cv)
-        model = SVC(C=C, kernel=kernel, degree=degree, tol=tol)
-    elif algo == 'GBC':
-        # hyperparameters = same format as line 65 but with correct parameters for GBC #TODO
-        model = GridSearchCV(GBC(), hyperparameters, cv=cv)
+        model = GridSearchCV(SVC(), hyperparams, cv=cv)
+        #model = SVC(C=C, kernel=kernel, degree=degree, tol=tol)
+
     elif algo == 'RF':
-        # hyperparameters = same format as line 65 but with correct parameters for RF #TODO
-        model = GridSearchCV(RF(), hyperparameters, cv=cv)
+        model = GridSearchCV(RF(), hyperparams, cv=cv)
+        #model = RF(n_estimators=n_estimators, min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf)
 
     print('Fitting Model and Tuning Hyperparameters with GridSearch using {}-fold cross-validation...'.format(cv))
     model.fit(train_x, train_y)
 
-    #best_params = model.best_params_
-    #print('Best Parameters Found: {}'.format(best_params))
+    best_params = model.best_params_
+    print('Best Parameters Found: {}'.format(best_params))
 
-    #best_score = model.best_score_
-    #print('Mean cross-validated score of the best_estimator: {}'.format(best_score))
+    best_score = model.best_score_
+    print('Mean cross-validated score of the best_estimator: {}'.format(best_score))
     
     print('Getting Predictions...')
     train_predictions = model.predict(train_x)
@@ -91,21 +86,45 @@ def train(train_x, train_y, test_x, test_y, algo='SVM', kernel='poly', degree=2,
     print(test_report)
     return test_accuracy, test_predictions
 
+def get_params(task, algo):
+    #parameters for every algo and task
+    hyperparams = {}
+    if algo == 'SVM':
+        hyperparams['kernel'] = ['linear','poly','rbf']
+        hyperparams['tol'] = [1e-1,1e-2,1e-3,1e-4]
+        hyperparams['degree'] = [1,2,3,4]
+        if task in {1,3}:
+            hyperparams['C'] = [0.16,0.17,0.18]
+        elif task == 2:
+            hyperparams['C'] = [0.15,0.16,0.17]
+        elif task == 4:
+            hyperparams['C'] = [0.14,0.15,0.16]
+        elif task == 5:
+            hyperparams['C'] = [0.23,0.24,0.25]
+    elif algo == 'RF':
+        hyperparams['min_samples_split'] = [2,3,4,5]
+        hyperparams['min_samples_leaf'] = [1,2,3]
+        if task == 1:
+            hyperparams['n_estimators'] = [9,10,11]
+        elif task == 2:
+            hyperparams['n_estimators'] = [11,12,13]
+        elif task in {3,4,5}:
+            hyperparams['n_estimators'] = [10,11,12]
+    return hyperparams
+
 def main():
     images_dir = 'dataset'
     labels_file = 'attribute_list.csv'
     #sample_size = 1000
-    task = 5 # TODO
-    algo = 'SVM' # TODO
+    task = int(sys.argv[1])
+    algo = sys.argv[2].upper()
     cv = 3
     #method='landmark_features'
     method='face_locations'
 
-    # method 1
+    hyperparams = get_params(task, algo)
+
     dataset, noisy_detected = helper.extract_features_labels(images_dir, labels_file, task=task, method=method, model='hog', sample_times=1) # TODO
-    # method 2
-    #dataset = helper.extract_features_labels(images_dir, labels_file, task=1, method='face_locations', model='hog', sample_times=1)
-    #dataset = helper.extract_features_labels(images_dir, labels_file, task=1, method='face_locations', model='cnn', sample_times=2)
 
     # get dataset distribution of given task
     task_distribution = Counter(d[-1] for d in dataset)
@@ -128,7 +147,7 @@ def main():
     preprocessed_dataset = preprocess_dataset(dataset)
     train_data, train_labels, test_data, test_labels, test_files = create_train_test_split(preprocessed_dataset)
 
-    test_accuracy, test_predictions = train(train_data, train_labels, test_data, test_labels, algo=algo, cv=cv)
+    test_accuracy, test_predictions = train(train_data, train_labels, test_data, test_labels, algo, hyperparams)
     create_test_file(test_accuracy, test_predictions, test_files, task=task)
     
 if __name__ == '__main__':

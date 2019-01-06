@@ -144,8 +144,7 @@ def get_labels(labels_file, task=1):
             label = row[5]
         elif task == 5:
             label = row[1]
-            if label in {'-1','0'}:
-            #if label =='-1':
+            if label =='-1':
                 continue
         labels[image] = label
     return labels
