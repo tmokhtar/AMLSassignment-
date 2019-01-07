@@ -124,7 +124,7 @@ def main():
 
     hyperparams = get_params(task, algo)
 
-    dataset, noisy_detected = helper.extract_features_labels(images_dir, labels_file, task=task, method=method, model='hog', sample_times=1) # TODO
+    dataset, noisy_detected = helper.extract_features_labels(images_dir, labels_file, task=task, method=method, model='hog', sample_times=2)
 
     # get dataset distribution of given task
     task_distribution = Counter(d[-1] for d in dataset)
